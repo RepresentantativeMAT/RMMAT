@@ -5,6 +5,7 @@
  */
 package br.ufsc.model;
 
+import br.ufsc.util.Util;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -64,7 +65,7 @@ public class TemporalAspect {
 
     @Override
     public String toString() {
-        return formatDate.format(startTime) +" - "+ (endTime != null? formatDate.format(endTime):"");
+        return formatDate.format(startTime) + (endTime != null? " - "+formatDate.format(endTime):"") ;
     }
 
     /**
@@ -149,6 +150,8 @@ public class TemporalAspect {
         this.dailyInfo = dailyInfo;
     }
     
-    
+    public int minutesInInterval(){
+        return Util.minutesDiference(startTime, endTime);
+    }
     
 }

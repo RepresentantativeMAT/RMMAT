@@ -1,14 +1,7 @@
 /*
-
-Main Class with the core... and version only modify what is necessary
-
-version 1: 
-    Match Semantic for categorical type is considered match (1) when the rank value RT contain the value of the input traj
-
-
-version 2: 
-    Match Semantic for categorical type is used % proportion of the relative value
-
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
  */
 package measure;
 
@@ -28,15 +21,15 @@ import java.util.Map;
  *
  * @author vanes
  */
-public class MUITAS {
+public class MUITAS_bkp {
 
-    protected Map<Object, Float> weights;
-    protected Map<Object, Float> thresholds;
+    private Map<Object, Float> weights;
+    private Map<Object, Float> thresholds;
 
-    protected double parityT1T2 = 0;
-    protected double parityT2T1 = 0;
+    private double parityT1T2 = 0;
+    private double parityT2T1 = 0;
 
-    public MUITAS() {
+    public MUITAS_bkp() {
         this.weights = new HashMap<Object, Float>();
         this.thresholds = new HashMap<Object, Float>();
     }
@@ -141,7 +134,7 @@ public class MUITAS {
             double maxScoreRow = 0;
 
             for (int j = 0; j < t2.getPointList().size(); j++) {
-                scores[i][j] = this.score(t1.getPointList().get(i), t2.getPointList().get(j));
+                scores[i][j] = this.score((Centroid) t1.getPointList().get(i), t2.getPointList().get(j));
                 maxScoreRow = scores[i][j] > maxScoreRow ? scores[i][j] : maxScoreRow;
             }
 
@@ -162,52 +155,33 @@ public class MUITAS {
 
     }
 
-    private final double score(Point pointT1, Point p2) throws ParseException {
+    private final double score(Centroid p1, Point p2) throws ParseException {
         double score = 0;
 
-        if (pointT1 instanceof Centroid) {
-            Centroid p1 = (Centroid) pointT1;
-            //Spatial match:
-            if (Util.euclideanDistance(p1, p2) <= getThreshold("SPATIAL")) {
-                score += (getWeight("SPATIAL"));
+//        System.out.println("RP: \n"+p1);
+        //Spatial match:
+        if (Util.euclideanDistance(p1, p2) <= getThreshold("SPATIAL")) {
+            score += (getWeight("SPATIAL"));
+        }
+//        System.out.println("Spatial score: "+score);
+        matchTemporal:
+        {
+            // Trajectory with only one STI
+            double match = 0;
+            if (!p1.getListSTI().isEmpty() && p1.getListSTI().size() == 1) {
+                STI sti = p1.getListSTI().get(0);
+                match = sti.getInterval().isInInterval(p2.getTime().getStartTime()) ? 1 : 0;
             }
+            score += match * getWeight("TIME");
 
-            matchTemporal:
-            {
-                // Trajectory with only one STI
-                double match = 0;
-                if (!p1.getListSTI().isEmpty() && p1.getListSTI().size() == 1) {
-                    STI sti = p1.getListSTI().get(0);
-                    match = sti.getInterval().isInInterval(p2.getTime().getStartTime()) ? 1 : 0;
-                }
-                score += match * getWeight("TIME");
+        }
 
-            }
+        for (AttributeValue atvP1 : p1.getListAttrValues()) {
+            AttributeValue tempAttP2 = atvP1.getAttibute() != null ? p2.getAttributeValue(atvP1.getAttibute()) : null;
 
-            for (AttributeValue atvP1 : p1.getListAttrValues()) {
-                AttributeValue tempAttP2 = atvP1.getAttibute() != null ? p2.getAttributeValue(atvP1.getAttibute()) : null;
+            double tempSemanticMatch = computeMatch(atvP1, tempAttP2);
+            score += tempSemanticMatch;
 
-                double tempSemanticMatch = computeMatch(atvP1, tempAttP2);
-                score += tempSemanticMatch;
-
-            }
-        } else {
-            //Spatial match:
-            if (Util.euclideanDistance(pointT1, p2) <= getThreshold("SPATIAL")) {
-                score += (getWeight("SPATIAL"));
-            }
-            //Temporal match:
-            if (Util.minutesDiference(pointT1.getTime().getStartTime(), p2.getTime().getStartTime()) <= getThreshold("TIME")) {
-                score += (getWeight("TIME"));
-            }
-            // Semantic match:
-            for (AttributeValue atvP1 : pointT1.getListAttrValues()) {
-                AttributeValue tempAttP2 = atvP1.getAttibute() != null ? p2.getAttributeValue(atvP1.getAttibute()) : null;
-
-                double tempSemanticMatch = computeMatch(atvP1, tempAttP2);
-                score += tempSemanticMatch;
-
-            }
         }
         return score;
     }
@@ -218,25 +192,23 @@ public class MUITAS {
         if (atv == null || rep == null) {
             return 0;
         }
-
-        if (rep.getAttibute().getType() == SemanticType.NUMERICAL) {
+        
+        if(rep.getAttibute().getType() == SemanticType.NUMERICAL){
             match = Math.abs((Double) rep.getValue() - (Double) atv.getValue()) <= getThreshold(atv.getAttibute()) ? 1.0 : 0;
-
-        } else if (rep.getAttibute().getType() == SemanticType.CATEGORICAL) {
+        
+        } else if(rep.getAttibute().getType() == SemanticType.CATEGORICAL){
             // case of semantic - categorical
-            try {
-                Map<String, Double> valuesRT = (HashMap) rep.getValue();
-                if (valuesRT.containsKey(((String) atv.getValue()).toUpperCase())) {
-                    match = 1;
-                }
-            } catch (Exception e) {
-                match = rep.getValue().equals(atv.getValue()) ? 1.0 : 0.0;
+            Map<String, Double> valuesRT = (HashMap) rep.getValue();
+            if (valuesRT.containsKey(((String) atv.getValue()).toUpperCase())) {
+                match = 1;
             }
-
         } else {
-            System.err.println("Attribute Type not identified> " + rep.getAttibute().getName() + " = " + rep.getValue());
+            System.err.println("Attribute Type not identified> "+rep.getAttibute().getName()+" = "+rep.getValue());
         }
-
+        
+//        System.out.println("Value to be compared - RT:  "+rep.getAttibute().getName()+" = "+rep.getValue()+" >> type: "+rep.getValue().getClass());
+//        System.out.println("Value to be compared - T:  "+atv.getAttibute().getName()+" = "+atv.getValue()+" >> type: "+atv.getValue().getClass());
+//        System.out.println("Match: "+match+" - Score: "+match * getWeight(rep.getAttibute()));
         return match * getWeight(rep.getAttibute());
     }
 

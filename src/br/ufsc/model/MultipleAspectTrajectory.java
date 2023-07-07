@@ -14,14 +14,18 @@ import java.util.List;
  */
 public class MultipleAspectTrajectory implements Cloneable {
 
-    
-
     private String description;
     private int id;
     private List<Point> pointList;
     private int coverPoints;
+    private int coverTrajectories;
     private boolean dailyInfo;
+    private float spatialThreshold; // cellSize used to compute representative MAT
+    private float temporalDifAVG; // avg of duration of temporal intervals in the rep MAT
+    private float rvThreshold;
+    private float rcThreshold;
 
+    
     public MultipleAspectTrajectory(String description, int id) {
         this.description = description;
         this.id = id;
@@ -77,15 +81,17 @@ public class MultipleAspectTrajectory implements Cloneable {
     }
 
     /**
-     * Method to increment some data points (size of points) to compute coverPoints,
-     * -- i.e., the input data points covered by our representative trajectory
-     * @param sizeDataPoints 
+     * Method to increment some data points (size of points) to compute
+     * coverPoints, -- i.e., the input data points covered by our representative
+     * trajectory
+     *
+     * @param sizeDataPoints
      */
     public void incrementValue(int sizeDataPoints) {
 //        System.out.println("Cover points: " + coverPoints + " plus: " + sizeDataPoints);
         this.coverPoints += sizeDataPoints;
     }
-    
+
     public void decrementValue(int value) {
 //        System.out.println("Cover points: " + coverPoints + " minus: " + value);
         this.coverPoints -= value;
@@ -99,9 +105,14 @@ public class MultipleAspectTrajectory implements Cloneable {
             aux += "\nPoint List: \n";
 
             for (Point p : pointList) {
-                aux += p + "\n";
+                if (p instanceof Centroid) {
+                    aux += ((Centroid) p) + "\n";
+                } else {
+                    aux += p + "\n";
+                }
             }
         }
+        aux += "\nSpatial Threshold (Cell Size): " + spatialThreshold;
         return aux;
     }
 
@@ -143,4 +154,45 @@ public class MultipleAspectTrajectory implements Cloneable {
         final MultipleAspectTrajectory other = (MultipleAspectTrajectory) obj;
         return this.id == other.id;
     }
+
+    public float getSpatialThreshold() {
+        return spatialThreshold;
+    }
+
+    public void setSpatialThreshold(float spatialThreshold) {
+        this.spatialThreshold = spatialThreshold;
+    }
+
+    public float getTemporalDifAVG() {
+        return temporalDifAVG;
+    }
+
+    public void setTemporalDifAVG(float temporalDifAVG) {
+        this.temporalDifAVG = temporalDifAVG;
+    }
+
+    public float getRvThreshold() {
+        return rvThreshold;
+    }
+
+    public void setRvThreshold(float rvThreshold) {
+        this.rvThreshold = rvThreshold;
+    }
+
+    public float getRcThreshold() {
+        return rcThreshold;
+    }
+
+    public void setRcThreshold(float rcThreshold) {
+        this.rcThreshold = rcThreshold;
+    }
+
+    public int getCoverTrajectories() {
+        return coverTrajectories;
+    }
+
+    public void setCoverTrajectories(int coverTrajectories) {
+        this.coverTrajectories = coverTrajectories;
+    }
+
 }

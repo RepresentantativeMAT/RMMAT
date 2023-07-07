@@ -7,11 +7,8 @@ package br.ufsc.model;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -21,11 +18,11 @@ import java.util.Objects;
  *
  * @author vanes
  */
-public class Centroid extends Point implements Comparable{
+public class Centroid extends Point implements Comparable {
 
     private List<Point> pointListSource;
     private List<STI> listSTI;
-    private STI sti;
+//    private STI sti;
 //    Locale.setDefault(Locale.US);
 //    DecimalFormat formatNumber = new DecimalFormat("0.###");
 
@@ -48,25 +45,20 @@ public class Centroid extends Point implements Comparable{
     }
 
     //methods
-    
     public void setSpatialDimension(double x, double y) {
         this.x = x;
         this.y = y;
     }
 
-    
-    public STI getSti() {
-        return sti;
-    }
-
-    public void setSti(STI sti) {
-        this.sti = sti;
-        if(sti != null)
-            this.sti.setPoint(this);
-    }
-
-    
-    
+//    public STI getSti() {
+//        return sti;
+//    }
+//
+//    public void setSti(STI sti) {
+//        this.sti = sti;
+//        if(sti != null)
+//            this.sti.setPoint(this);
+//    }
     public void addPoint(Point p) {
         pointListSource.add(p);
     }
@@ -78,7 +70,7 @@ public class Centroid extends Point implements Comparable{
     public void addSTI(STI sti) {
         sti.setPoint(this);
         listSTI.add(sti);
-        
+
     }
 
     public void addSTI(Date startTime, float proportion) {
@@ -95,9 +87,6 @@ public class Centroid extends Point implements Comparable{
         time.setPoint(null);
         listSTI.remove(time);
     }
-    
-    
-    
 
 //    @Override
     public String toString() {
@@ -106,19 +95,25 @@ public class Centroid extends Point implements Comparable{
         String aux = ("rt");
 
         aux += "\n(x,y)= (" + formatNumber.format(x) + "," + formatNumber.format(y) + "), ";
-//        if(!listSTI.isEmpty()){
-//            aux += "\nTime: "+listSTI;
-//        }
-        if (!listAttrValues.isEmpty() ) {
+        if (!listSTI.isEmpty()) {
+            aux += "\nTime: " + listSTI;
+        }
+        if (!listAttrValues.isEmpty()) {
             aux += showAttrValues();
         }
-        if(getSti()!=null){
-            aux += "\nTime: "+sti;
-        }
-                aux += "\nCell: "+cellReference
-                        +"\nLocal mapped: ";
+//        if(getSti()!=null){
+//            aux += "\nTime: "+sti;
+//        }
+        aux += "\nCell: " + cellReference
+                + "\nLocal mapped: ";
         for (Point p : pointListSource) {
             aux += p.getTrajectory().getId() + " - " + p.getrId() + ", ";
+        }
+
+        if (!listAttrValues.isEmpty()) {
+            aux += showAttrValues();
+        } else {
+            System.out.println("Semantic empty");
         }
         aux += "";
         return aux;
@@ -155,16 +150,30 @@ public class Centroid extends Point implements Comparable{
 //        System.out.println("Lista STI: "+listSTI);
         //txt += "";
 
-        if (!listSTI.isEmpty()) {
-            txt += "Ranking of Temporal Interval = [";
-            for (STI sti : listSTI) {
-                txt += sti + ", ";
-            }
-            txt += " ], ";
-        }
-
+//        if (!listSTI.isEmpty()) {
+//            txt += "Ranking of Temporal Interval = [";
+//            for (STI sti : listSTI) {
+//                txt += sti + ", ";
+//            }
+//            txt += " ], ";
+//        }
         return txt;
     }
+
+    public String getMappingInformation() {
+        String aux = "{";
+        for (var p : pointListSource) {
+            aux += p.getTrajectory().getId() + ": " + p.getrId() + "; ";
+        }
+
+        aux += "}";
+        aux = aux.replace("; }", "}");
+        return aux;
+    }
+    
+    
+    
+    
 
     @Override
     public int hashCode() {
@@ -186,28 +195,33 @@ public class Centroid extends Point implements Comparable{
             return false;
         }
         final Centroid other = (Centroid) obj;
-        
+
         if (!Objects.equals(this.listSTI, other.listSTI)) {
             return false;
         }
         return true;
     }
 
-    
     @Override
     public int compareTo(Object other) {
+        if (!listSTI.isEmpty() && listSTI.size() == 1) {
+            if (!((Centroid) other).listSTI.isEmpty() && ((Centroid) other).listSTI.size() == 1) {
+                STI sti = listSTI.get(0);
+                STI otherSti = ((Centroid) other).listSTI.get(0);
+                if (sti.getInterval().getStartTime().after(otherSti.getInterval().getStartTime())) {
+                    return 1;
+                } else if (sti.getInterval().getStartTime().before((otherSti.getInterval().getStartTime()))) {
+                    return -1;
+                } 
+            }
+
+        }
         
-        if(this.getSti().getInterval().getStartTime().after(((Centroid)other).getSti().getInterval().getStartTime()))
-            return 1;
-        else if (this.getSti().getInterval().getStartTime().before(((Centroid)other).getSti().getInterval().getStartTime()))
-            return -1;
-        else
-            return 0;
-        
+        return 0;
     }
 
-
-    
-    
+    public List<STI> getListSTI() {
+        return listSTI;
+    }
 
 }
