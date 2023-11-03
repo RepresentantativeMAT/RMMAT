@@ -11,8 +11,10 @@ import br.ufsc.model.MultipleAspectTrajectory;
 import br.ufsc.model.Point;
 import br.ufsc.model.SemanticAspect;
 import br.ufsc.model.SemanticType;
+import br.ufsc.util.CSVWriter;
 import br.ufsc.util.Util;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -25,7 +27,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  *
@@ -85,10 +86,16 @@ public class LoadData {
 
         loadRepresentativeMAT();
 
-        representativeTrajectory.setCoverTrajectories(mappingData.size());
-        
+        //Only compute measure when have RT
+        if (!representativeTrajectory.getPointList().isEmpty()) {
+
+            representativeTrajectory.setCoverTrajectories(mappingData.size());
+
 //        System.out.println("RT: "+representativeTrajectory);
-        computeRepresentativenessMeasure();
+            computeRepresentativenessMeasure();
+        } else {
+            System.err.println("Representative Trajectory not founded");
+        }
 
     }
 
@@ -248,91 +255,118 @@ public class LoadData {
                 Double.parseDouble(coordinates[1]), time, attrs));
     }
 
-    private void loadRepresentativeMAT() throws FileNotFoundException, IOException, ParseException {
-        java.io.Reader input = new FileReader(directory + sepDir + filenameRT + extension);
-        BufferedReader reader = new BufferedReader(input);
-        String[] columns;
-        String eachRow;
-        do {
-            eachRow = reader.readLine();
-            if (eachRow.contains("input.T")) {
+    private void loadRepresentativeMAT() throws ParseException, IOException {
+        try {
+            // Need update pattern data to format of RT
+            formatDate = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+            java.io.Reader input = new FileReader(directory + sepDir + filenameRT + extension);
+            BufferedReader reader = new BufferedReader(input);
+
+            String[] columns;
+            String eachRow;
+            do {
                 eachRow = reader.readLine();
-                inputTrajectories.setSizePoints(Integer.parseInt(eachRow.split(",")[1].trim()));
+                if (eachRow.contains("input.T")) {
+                    eachRow = reader.readLine();
+                    System.out.println("Linha RT: "+eachRow);
+                    
+                    
+                    inputTrajectories.setSizePoints(Integer.parseInt(eachRow.split(",")[1].trim()));
 
-            } else if (eachRow.contains("setting infos")) {
-                break;
-            }
+                } else if (eachRow.contains("setting infos")) {
+                    break;
+                }
 
-        } while (eachRow != null);
-        // !eachRow.contains("##")); // Logic used on RT file to segment each section of the data (dataset info, RT settings, and RT)
+            } while (eachRow != null);
+            // !eachRow.contains("##")); // Logic used on RT file to segment each section of the data (dataset info, RT settings, and RT)
 
-        // READ RT setting info
-        //To Get the header of settings
-        eachRow = reader.readLine();
-        columns = eachRow.split(SEPARATOR);
-        int orderCellSize = -1;
-        int orderCoverPoints = -1;
-
-        for (int i = 0; i < columns.length; i++) {
-
-            if (columns[i].trim().equalsIgnoreCase("CellSize")) {
-                orderCellSize = i;
-            } else if (columns[i].toUpperCase().trim().contains("COVER")) {
-                orderCoverPoints = i;
-                break;
-            }
-        }
-
-        eachRow = reader.readLine();
-        String[] valuesLine = eachRow.split(SEPARATOR);
-        
-        // computing point dispersion avg according to Z value and cellSize
-        
-        float spatialTau = (float)(Float.parseFloat(valuesLine[orderCellSize++].trim()) / 0.7071) / Float.parseFloat(valuesLine[0].trim());
-        
-        
-        representativeTrajectory.setSpatialThreshold(spatialTau);
-        representativeTrajectory.setRcThreshold(Float.parseFloat(valuesLine[orderCellSize++].trim()));
-        representativeTrajectory.setRvThreshold(Float.parseFloat(valuesLine[orderCellSize++].trim()));
-
-        representativeTrajectory.setCoverPoints(Integer.parseInt(valuesLine[orderCoverPoints].trim()));
-
-        do {
+            // READ RT setting info
+            //To Get the header of settings
             eachRow = reader.readLine();
-            if (eachRow.contains("RT description")) {
-                break;
+            columns = eachRow.split(SEPARATOR);
+            int orderCellSize = -1;
+            int orderCoverPoints = -1;
+
+            for (int i = 0; i < columns.length; i++) {
+
+                if (columns[i].trim().equalsIgnoreCase("CellSize")) {
+                    orderCellSize = i;
+                } else if (columns[i].toUpperCase().trim().contains("COVER")) {
+                    orderCoverPoints = i;
+                    break;
+                }
             }
 
-        } while (eachRow != null);
-        // Begin read RT
+            eachRow = reader.readLine();
+            String[] valuesLine = eachRow.split(SEPARATOR);
 
-        //To Get the header of dataset
-        eachRow = reader.readLine();
-        String[] datasetColumns = eachRow.split(SEPARATOR);
-        // To convert each name in SemanticAspect object and store the new order to find in each representative point
-        // INDEX_SEMANTIC-1 -- because in original dataset 1st colum is the "tid" 
-        // datasetColumns.length-1 > Last one refers to mapping info
+            // computing point dispersion avg according to Z value and cellSize
+            float spatialTau = (float) (Float.parseFloat(valuesLine[orderCellSize++].trim()) / 0.7071) / Float.parseFloat(valuesLine[0].trim());
 
-        for (int i = INDEX_SEMANTIC - 1; i < datasetColumns.length - 1; i++) {
+            representativeTrajectory.setSpatialThreshold(spatialTau);
+            representativeTrajectory.setRcThreshold(Float.parseFloat(valuesLine[orderCellSize++].trim()));
+            representativeTrajectory.setRvThreshold(Float.parseFloat(valuesLine[orderCellSize++].trim()));
 
-            SemanticAspect semAspec = findAttribute(datasetColumns[i]);
-            if (semAspec != null) {
-                semAspec.setOrder(i);
+            representativeTrajectory.setCoverPoints(Integer.parseInt(valuesLine[orderCoverPoints].trim()));
+
+            do {
+                eachRow = reader.readLine();
+                if (eachRow.contains("RT description")) {
+                    break;
+                }
+
+            } while (eachRow != null);
+            // Begin read RT
+
+            //To Get the header of dataset
+            eachRow = reader.readLine();
+            String[] datasetColumns = eachRow.split(SEPARATOR);
+            // To convert each name in SemanticAspect object and store the new order to find in each representative point
+            // INDEX_SEMANTIC-1 -- because in original dataset 1st colum is the "tid" 
+            // datasetColumns.length-1 > Last one refers to mapping info
+
+            for (int i = INDEX_SEMANTIC - 1; i < datasetColumns.length - 1; i++) {
+
+                SemanticAspect semAspec = findAttribute(datasetColumns[i]);
+                if (semAspec != null) {
+                    semAspec.setOrder(i);
+                } else {
+                    System.err.println("Semantic Aspect not found -- " + datasetColumns[i]);
+                }
+            }
+
+            eachRow = reader.readLine();
+            while (eachRow != null) {
+
+                datasetColumns = eachRow.toUpperCase().split(SEPARATOR);
+                addAttributeValuesRT(datasetColumns);
+                eachRow = reader.readLine();
+
+            }
+
+            reader.close();
+
+        } catch (FileNotFoundException e) {
+            CSVWriter valWriter;
+
+            String lastDir = filenameRT.substring(0, filenameRT.lastIndexOf(sepDir));
+            String fileLog = filenameRT.substring(filenameRT.indexOf(sepDir),
+                    filenameRT.lastIndexOf(sepDir));
+            fileLog = fileLog.substring(fileLog.lastIndexOf(" ")) + "[logs][times 4]";
+            String pathFileLog = directory + sepDir + lastDir + sepDir + fileLog.trim() + extension;
+            if (!new File(pathFileLog).exists()) {
+                valWriter = new CSVWriter(pathFileLog);
             } else {
-                System.err.println("Semantic Aspect not found -- " + datasetColumns[i]);
+                valWriter = new CSVWriter(pathFileLog, true);
             }
+
+            valWriter.writeLine("Arquivo não encontrado: " + e.getMessage());
+            valWriter.flush();
+            valWriter.close();
+
+        } catch (IOException e) {
+            System.out.println("Erro de leitura do arquivo: " + e.getMessage());
         }
-
-        eachRow = reader.readLine();
-        while (eachRow != null) {
-
-            datasetColumns = eachRow.toUpperCase().split(SEPARATOR);
-            addAttributeValuesRT(datasetColumns);
-            eachRow = reader.readLine();
-
-        }
-
-        reader.close();
 
     }
 
@@ -367,10 +401,33 @@ public class LoadData {
 
             a = findAttributeForOrder(i);
             if (a != null) { // This one will be NULL whether the columns is setted as ignored
-                attrs.add(new AttributeValue(a.getType() == SemanticType.NUMERICAL
-                        ? ((Double) Double.parseDouble(attrValues[i].trim().toUpperCase()))
-                        : convertStringToMap(attrValues[i].trim()),
-                        a));
+                if (Arrays.asList(valuesNulls).contains(attrValues[i].trim())) {
+                    attrs.add(new AttributeValue(a.getType() == SemanticType.NUMERICAL
+                            ? ((Double) Double.parseDouble(attrValues[i].trim().toUpperCase()))
+                            : attrValues[i].trim().toUpperCase(),
+                            a));
+                } else {
+                    try {
+//                        System.out.println("Attr:"+a.getName());
+                        attrs.add(new AttributeValue(a.getType() == SemanticType.NUMERICAL
+                                ? ((Double) Double.parseDouble(attrValues[i].trim().toUpperCase()))
+                                : convertStringToMap(attrValues[i].trim()),
+                                a));
+                    } catch (NumberFormatException e) {
+                        if (attrValues[i].trim().contains("{")) {
+                            attrs.add(new AttributeValue(convertStringToMap(attrValues[i].trim()),
+                                    a));
+                        } else if (attrValues[i] == null) {
+                            attrs.add(new AttributeValue(Double.valueOf("0.0"),
+                                    a));
+                        } else {
+                            System.err.println("Error to read value " + attrValues[i].trim() + " of: " + a.getName());
+                        }
+                    } catch (ArrayIndexOutOfBoundsException e2){
+                        System.err.println("Attr: "+a+" = "+attrValues[i].trim());
+                        System.err.println("Error: "+e2);
+                    }
+                }
             }
 
         }
@@ -409,8 +466,12 @@ public class LoadData {
     } // end of addAttributeValue method
 
     private void computeRepresentativenessMeasure() throws ParseException, CloneNotSupportedException {
-        representativeTrajectory.setTemporalDifAVG(tauTime / representativeTrajectory.getPointList().size());
-        RepresentativenessMeasure RM = new RepresentativenessMeasure(directory, inputTrajectories, representativeTrajectory);
+        try {
+            representativeTrajectory.setTemporalDifAVG(tauTime / representativeTrajectory.getPointList().size());
+        } catch (Exception e) {
+            System.err.println("Error to compute temporal average as thresholds: " + e);
+        }
+        RMMAT RM = new RMMAT(directory, filenameRT, inputTrajectories, representativeTrajectory);
         RM.computeRepresentativenessMeasure();
 
     }
@@ -447,11 +508,16 @@ public class LoadData {
     } //end findAttributeForOrder method
 
     public static Map<String, Double> convertStringToMap(String input) {
+        input = input.replace("{", "").replace("}", "").trim();
+        if(input.isEmpty() || input.equalsIgnoreCase(""))
+            return null;
         Map<String, Double> map = new HashMap<>();
-
-        String[] pairs = input.replace("{", "").replace("}", "").split(";");
+//        System.out.println("String: " + input);
+        
+        String[] pairs = input.split(";");
         for (String pair : pairs) {
             String[] keyValue = pair.split(":");
+
             String key = keyValue[0].trim();
             Double value = Double.parseDouble(keyValue[1].trim());
             map.put(key, value);

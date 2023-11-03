@@ -18,7 +18,6 @@ import br.ufsc.model.MultipleAspectTrajectory;
 import br.ufsc.model.Point;
 import br.ufsc.model.STI;
 import br.ufsc.model.SemanticAspect;
-import br.ufsc.model.SemanticType;
 import br.ufsc.util.Util;
 import java.text.ParseException;
 import java.util.HashMap;
@@ -216,28 +215,76 @@ public class MUITAS {
         double match = 0;
 
         if (atv == null || rep == null) {
+//            System.out.println("Entrou na analise do valor");
             return 0;
+        } else if (rep.getValue() == null){
+            if (atv.getValue() == null)
+                return 1;
+            else 
+                return 0;
         }
 
-        if (rep.getAttibute().getType() == SemanticType.NUMERICAL) {
-            match = Math.abs((Double) rep.getValue() - (Double) atv.getValue()) <= getThreshold(atv.getAttibute()) ? 1.0 : 0;
-
-        } else if (rep.getAttibute().getType() == SemanticType.CATEGORICAL) {
-            // case of semantic - categorical
-            try {
-                Map<String, Double> valuesRT = (HashMap) rep.getValue();
-                if (valuesRT.containsKey(((String) atv.getValue()).toUpperCase())) {
-                    match = 1;
-                }
-            } catch (Exception e) {
-                match = rep.getValue().equals(atv.getValue()) ? 1.0 : 0.0;
-            }
-
+        if (null == rep.getAttibute().getType()) {
+            System.err.println("Attribute Type not identified: " + rep.getAttibute().getName() + " = " + rep.getValue());
         } else {
-            System.err.println("Attribute Type not identified> " + rep.getAttibute().getName() + " = " + rep.getValue());
+            switch (rep.getAttibute().getType()) {
+                case NUMERICAL:
+                    double numP1 = (Double) atv.getValue();
+                    try {
+
+                        double numRep = (Double) rep.getValue();
+                        if (numP1 < 0 && numRep < 0) {
+                            match = 1;
+                        } else if (numP1 < 0 || numRep < 0) {
+                            match = 0;
+                        } else {
+                            match = Math.abs(numP1 - numRep) <= getThreshold(atv.getAttibute()) ? 1.0 : 0;
+                        }
+                    } catch (Exception e) {
+//                        System.err.println("Error with match Numerical type: att: " + atv.getAttibute()
+//                                + " - value RT: " + rep.getValue()
+//                                + "\n--" + e);
+//                        System.out.println("Class value: " + rep.getValue().getClass());
+                        Map<String, Double> valuesNumMap = (HashMap) rep.getValue();
+
+                        // Pattern {nullValue: Proport; repValue: propor}
+                        String keyNull = "-999.0";
+                        for (String keyNumValue : valuesNumMap.keySet()) {
+                            if (keyNumValue.equalsIgnoreCase(keyNull)) {
+                                if (numP1 < 0) {
+//                                        match = valuesNumMap.get(keyNull);
+                                    match = 1;
+                                }
+                            } else {
+                                double numRep = Double.parseDouble(keyNumValue);
+                                match = Math.abs(numP1 - numRep) <= getThreshold(atv.getAttibute()) ? 1.0 : 0;
+                            }
+                        }
+
+                    }
+//                } else {
+//                }
+                    break;
+                case CATEGORICAL:
+                // case of semantic - categorical
+                try {
+                    Map<String, Double> valuesRT = (HashMap) rep.getValue();
+                    if (valuesRT.containsKey(((String) atv.getValue()).toUpperCase())) {
+                        match = 1;
+                    }
+                } catch (Exception e) {
+                    match = rep.getValue().equals(atv.getValue()) ? 1.0 : 0.0;
+                }
+                break;
+                default:
+                    System.err.println("Attribute Type not identified> " + rep.getAttibute().getName() + " = " + rep.getValue());
+                    break;
+            }
         }
 
         return match * getWeight(rep.getAttibute());
     }
 
+    
+    
 }
