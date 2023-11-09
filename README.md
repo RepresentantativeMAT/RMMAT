@@ -14,7 +14,7 @@ RMMAT (Representativeness Measure for Multiple Aspect Trajectories) is a Java-ba
 - [Examples](#examples)
 - [Contributing](#contributing)
 - [Acknowledgments](#acknowledgments)
-- [Paper] [#paper]
+- [Paper](#paper)
 - [Contact](#contact)
 
 
