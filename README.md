@@ -14,6 +14,7 @@ RMMAT (Representativeness Measure for Multiple Aspect Trajectories) is a Java-ba
 - [Examples](#examples)
 - [Contributing](#contributing)
 - [Acknowledgments](#acknowledgments)
+- [Paper] [#paper]
 - [Contact](#contact)
 
 
@@ -81,6 +82,11 @@ We would also like to acknowledge the following funding and support:
 - Universidade Federal de Santa Catarina (UFSC), Ph.D. program in Computer Science
 
 The views expressed are the authors' responsibility and do not necessarily reflect the views of the European Commission.
+
+### Paper
+
+This paper was accepted and will be available at the Brazilian Symposium on Geoinformatics (GEOINFO) of 2023.
+
 
 ### Contact & Contributing
 
